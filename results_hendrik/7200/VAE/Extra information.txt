@@ -1,0 +1,19 @@
+***Data***
+Data period: 10-09-2019
+Delay: 7200s
+
+Training set: All other satellites
+Validation set (to determine threshold): E04
+Test set 1 (to check if threshold holds): E01
+Test set 2 (to inject errors): E03
+
+
+***Model*** 
+Variational Autoencoder
+
+
+***Errors***
+Type2: Scaling base variables (sp, sv, svCb) with a given fraction
+Type4: Starting from timestep 200, we keep the velocity constant and push the satellite position (sp) in the direction of the velocity (multiplied with a constant to speed up the process)
+Type6: Starting from timestep 200, we let the clock bias drift linearly with a given constant
+

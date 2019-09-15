@@ -2,7 +2,9 @@
 """
 Created on Thu Sep 12 21:12:55 2019
 
-@author: serru
+@author: Hendrik Serruys
+
+
 """
 
 from __future__ import absolute_import
@@ -14,11 +16,14 @@ from keras.models import Model
 from keras.losses import mse, binary_crossentropy
 from keras.utils import plot_model
 from keras import backend as K
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from keras.optimizers import Adam
 
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+
+from nav_datahandler import nav_datahandler
+from test_authenticator import validate_learner, test_anomaly
 
 # reparameterization trick
 # instead of sampling from Q(z|X), sample eps = N(0,I)
@@ -41,51 +46,30 @@ def sampling(args):
     return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
 
-#filename = "nav_data/10-09-2019_toe1800.csv"
-filename = "nav_data/10-09-2019_toe7200.csv"
-df = pd.read_csv(filename)
-
-feat = ["sp_X", "sp_Y", "sp_Z", "sv_X", "sv_Y", "sv_Z", "svCb"]
-df_feat = df[feat]
-#add squared features
-#df_feat = df_feat.assign(sp_X2 = np.square(df_feat["sp_X"].values))
-#df_feat = df_feat.assign(sp_Y2 = np.square(df_feat["sp_Y"].values))
-#df_feat = df_feat.assign(sp_Z2 = np.square(df_feat["sp_Z"].values))
-#add overall distance
-df_feat = df_feat.assign(sp_D = np.sqrt(df_feat["sp_X2"] + df_feat["sp_Y2"] + df_feat["sp_Z2"]))
-
-#Standardize data -> scikit learn
-scaler = MinMaxScaler(feature_range=(0.1,0.9))
-scaler.fit(df_feat)
-df_scaled = pd.DataFrame(scaler.transform(df_feat), columns = df_feat.columns)
-
-#Add time of week feature
-toe_scaled = df["toe"].values / 7200.0
-df_scaled = df_scaled.assign(toe = toe_scaled)
-
-#Prepare data
-val_start = np.where(df["svId"] == 30,)[0][0]
-test_start = np.where(df["svId"] == 33,)[0][0]
-trainX = df_scaled.values[0:val_start, :]
-#trainX = trainX.reshape(trainX.shape[0], 1, trainX.shape[1])
-valX = df_scaled.values[val_start:test_start, :]
-#valX = valX.reshape(valX.shape[0], 1, valX.shape[1])
-testX = df_scaled.values[test_start:, :]
-#testX = testX.reshape(testX.shape[0], 1, testX.shape[1])
+#Get datahandler
+#delay = 1800
+delay = 7200
+dh = nav_datahandler(delay)
+df_original = dh.get_df_original()
+df_features = dh.get_df_features()
+feature_names = df_features.columns.values
+trainX, valX, test1X, test2X = dh.get_tvt()
 
 
 # network parameters
-input_size = df_scaled.columns.values.shape[0]
+input_size = dh.get_input_size()
 input_shape = (input_size,)
-intermediate_dim = 6
+intermediate_dim = input_size - 1
+intermediate_dim2 = input_size - 2
 batch_size = 32
-latent_dim = 4
-epochs = 2
+latent_dim = input_size - 2
+epochs = 50
 
 # VAE model = encoder + decoder
 # build encoder model
 inputs = Input(shape=input_shape, name='encoder_input')
-x = Dense(intermediate_dim, activation='relu')(inputs)
+x = Dense(intermediate_dim, activation='tanh')(inputs) #relu
+x = Dense(intermediate_dim2, activation='tanh')(x)
 z_mean = Dense(latent_dim, name='z_mean')(x)
 z_log_var = Dense(latent_dim, name='z_log_var')(x)
 
@@ -100,8 +84,9 @@ plot_model(encoder, to_file='vae_encoder.png', show_shapes=True)
 
 # build decoder model
 latent_inputs = Input(shape=(latent_dim,), name='z_sampling')
-x = Dense(intermediate_dim, activation='relu')(latent_inputs)
-outputs = Dense(input_size, activation='sigmoid')(x) #Try act LINEAR for mse loss!
+x = Dense(intermediate_dim2, activation='tanh')(latent_inputs) #relu
+x = Dense(intermediate_dim, activation='tanh')(x)
+outputs = Dense(input_size, activation='tanh')(x) #Try act LINEAR for mse loss!
 
 # instantiate decoder model
 decoder = Model(latent_inputs, outputs, name='decoder')
@@ -119,10 +104,11 @@ reconstruction_loss = mse(inputs, outputs)
 reconstruction_loss *= input_size
 kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
 kl_loss = K.sum(kl_loss, axis=-1)
-kl_loss *= -0.5
-vae_loss = K.mean(reconstruction_loss + kl_loss)
+kl_loss *= -0.005 #-0.5
+vae_loss = K.mean(reconstruction_loss + kl_loss) #+kl_loss
 vae.add_loss(vae_loss)
-vae.compile(optimizer='adam')
+opt = Adam(lr=0.001)
+vae.compile(optimizer=opt)
 vae.summary()
 plot_model(vae,
            to_file='vae.png',
@@ -132,12 +118,26 @@ history = vae.fit(trainX,
         epochs=epochs,
         batch_size=batch_size,
         validation_data=(valX, None))
-#vae.save_weights('vae_mlp_mnist.h5')
 
+# Plot loss
+figsize = (12,6)
+plt.figure(figsize=figsize)
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.yscale('log')
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'validation'], loc='upper left')
+plt.show()
+
+# Save model
+model_fn = "models/vae1.h5"
+vae.save(model_fn)
 
 z_mean, _, _ = encoder.predict(valX, batch_size=16)
 plt.figure(figsize=(12, 10))
-plt.scatter(z_mean[:, 0], z_mean[:, 1], c=valX[:,-2]) #choose c the distance and produce extreme distances.
+plt.scatter(z_mean[:, 0], z_mean[:, 1], c=valX[:,-1]) #choose c the distance and produce extreme distances.
 plt.colorbar()
 plt.xlabel("z[0]")
 plt.ylabel("z[1]")
@@ -145,6 +145,14 @@ plt.ylabel("z[1]")
 plt.show()
 
 valX_pred = decoder.predict(z_mean)
+
+
+#Validate learner
+threshold = validate_learner(dh, vae)
+
+#Test anomaly
+test_anomaly(dh, vae, threshold)
+
 
 # =============================================================================
 # # summarize history for loss
