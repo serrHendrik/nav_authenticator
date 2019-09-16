@@ -1,5 +1,6 @@
 clear all; close all; clc;
 logDir = '.\1DAY 10-09-2019 gbrm\';
+%logDir = '.\gbrm\';
 logFiles = dir(logDir);
 k = 1;
 
