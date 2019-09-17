@@ -133,18 +133,20 @@ plt.show()
 
 # Save model
 model_fn = "models/vae1.h5"
-vae.save(model_fn)
+vae.save_weights(model_fn)
 
-z_mean, _, _ = encoder.predict(valX, batch_size=16)
-plt.figure(figsize=(12, 10))
-plt.scatter(z_mean[:, 0], z_mean[:, 1], c=valX[:,-1]) #choose c the distance and produce extreme distances.
-plt.colorbar()
-plt.xlabel("z[0]")
-plt.ylabel("z[1]")
-#plt.savefig(filename)
-plt.show()
-
-valX_pred = decoder.predict(z_mean)
+# =============================================================================
+# z_mean, _, _ = encoder.predict(valX, batch_size=16)
+# plt.figure(figsize=(12, 10))
+# plt.scatter(z_mean[:, 0], z_mean[:, 1], c=valX[:,-1]) #choose c the distance and produce extreme distances.
+# plt.colorbar()
+# plt.xlabel("z[0]")
+# plt.ylabel("z[1]")
+# #plt.savefig(filename)
+# plt.show()
+# 
+# valX_pred = decoder.predict(z_mean)
+# =============================================================================
 
 
 #Validate learner
