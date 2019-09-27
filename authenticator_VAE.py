@@ -47,9 +47,8 @@ def sampling(args):
 
 
 #Get datahandler
-#delay = 1800
-delay = 7200
-dh = nav_datahandler(delay)
+dataset_id = 3
+dh = nav_datahandler(dataset_id)
 df_original = dh.get_df_original()
 df_features = dh.get_df_features()
 feature_names = df_features.columns.values
@@ -63,7 +62,7 @@ intermediate_dim = input_size - 1
 intermediate_dim2 = input_size - 2
 batch_size = 32
 latent_dim = input_size - 2
-epochs = 50
+epochs = 200
 
 # VAE model = encoder + decoder
 # build encoder model
@@ -80,7 +79,7 @@ z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
 # instantiate encoder model
 encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
 encoder.summary()
-plot_model(encoder, to_file='vae_encoder.png', show_shapes=True)
+#plot_model(encoder, to_file='vae_encoder.png', show_shapes=True)
 
 # build decoder model
 latent_inputs = Input(shape=(latent_dim,), name='z_sampling')
@@ -91,7 +90,7 @@ outputs = Dense(input_size, activation='tanh')(x) #Try act LINEAR for mse loss!
 # instantiate decoder model
 decoder = Model(latent_inputs, outputs, name='decoder')
 decoder.summary()
-plot_model(decoder, to_file='vae_decoder.png', show_shapes=True)
+#plot_model(decoder, to_file='vae_decoder.png', show_shapes=True)
 
 # instantiate VAE model
 outputs = decoder(encoder(inputs)[2])
@@ -110,9 +109,7 @@ vae.add_loss(vae_loss)
 opt = Adam(lr=0.001)
 vae.compile(optimizer=opt)
 vae.summary()
-plot_model(vae,
-           to_file='vae.png',
-           show_shapes=True)
+#plot_model(vae, to_file='vae.png', show_shapes=True)
 
 history = vae.fit(trainX,
         epochs=epochs,

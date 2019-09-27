@@ -12,9 +12,8 @@ from nav_datahandler import nav_datahandler
 from test_authenticator import validate_learner, test_anomaly, visualise_code_space, check_variable_test1, check_variable_test2
 
 #Get datahandler
-#delay = 1800
-delay = 7200
-dh = nav_datahandler(delay)
+dataset_id = 3
+dh = nav_datahandler(dataset_id)
 
 #load model
 #ae_fn = "models/ae2.h5"
@@ -33,8 +32,8 @@ dh = nav_datahandler(delay)
 #check_variable_test1(dh, vae, 3)
 
 test_anomaly(dh, vae, threshold)
-#check_variable_test2(dh, vae, 6)
-visualise_code_space(encoder, dh.test2X, dh.scaler)
+check_variable_test2(dh, vae, 0)
+#visualise_code_space(encoder, dh.test2X, dh.scaler)
 
 
 

@@ -34,7 +34,7 @@ for i = 1:length(out)
 end
 
 %write table
-output_name = ['10-09-2019_toe',num2str(data.toe(1)),'.csv'];
+output_name = ['week2_v4_accCheck_toe',num2str(data.toe(1)),'.csv'];
 if isfile(output_name)
     disp(['Outputfile ', output_name ,' already exists. Remove it first if you wish to generate a new one.']);
 else

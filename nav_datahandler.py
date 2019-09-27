@@ -8,43 +8,92 @@ Created on Sat Sep 14 09:26:51 2019
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import numpy as np
 import pandas as pd
+from toeScaler import toeScaler
 
 class nav_datahandler:
-    def __init__(self, delay):
-        if delay == 1800:
+    def __init__(self, dataset_id):
+        if dataset_id == 1:
             self.filename = "nav_data/10-09-2019_toe1800.csv"
-        elif delay == 7200:
+        elif dataset_id == 2:
             self.filename = "nav_data/10-09-2019_toe7200.csv"
+            #self.filename = "nav_data/week2_v4_accCheck_toe7200.csv"
+        elif dataset_id == 3:
+            self.filename1 = "nav_data/week2_v4_accCheck_toe600.csv"
+            self.filename2 = "nav_data/week2_v4_accCheck_toe3600.csv"
+            self.filename3 = "nav_data/week2_v4_accCheck_toe7200.csv"
+            
         else:
             self.filename = ""
             print("Wrong delay given to datahandler.")
             
-        if self.filename != "":
-            self.load_data()
-            self.remove_sats()
-            self.sample_data(20)
-            self.init_split_indices()
-            self.inject_error_type6(5)
-            self.extract_features()
-            self.split_tvt()
+        
+        self.load_data2()
+        #self.remove_sats()
+        self.sample_step = 30
+        self.sample_data(self.sample_step)
+        self.init_split_indices()
+        self.inject_error_type7(15)
+        self.extract_features()
+        self.split_tvt()
             
             
             
     def load_data(self):
         self.df_original = pd.read_csv(self.filename)
+    
+    def load_data2(self):
+        self.ts = toeScaler()
+        self.ref_toe_value = 3600
+        
+        self.df1 = pd.read_csv(self.filename1)
+        self.df2 = pd.read_csv(self.filename2)
+        self.df3 = pd.read_csv(self.filename3)
+        
+        self.df1 = self.clean_data2(self.df1, 1000)
+        self.df2 = self.clean_data2(self.df2, 1000)
+        self.df3 = self.clean_data2(self.df3, 1000)
+        
+        
+        self.df1_scaled = self.ts.scale(self.df1, self.ref_toe_value)
+        self.df2_scaled = self.ts.scale(self.df2, self.ref_toe_value)
+        self.df3_scaled = self.ts.scale(self.df3, self.ref_toe_value)
+        
+        self.df_original = self.df1_scaled
+        self.df_original = self.df_original.append(self.df2_scaled, ignore_index = True)
+        self.df_original = self.df_original.append(self.df3_scaled, ignore_index = True)
+        
+# =============================================================================
+#     def clean_data(self):
+#         ind_to_remove = np.array([])
+#         ind_to_remove = np.append(ind_to_remove, np.where(np.abs(self.df_original["sp_X"]) > 1000))
+#         self.df_original = self.df_original.drop(ind_to_remove)
+# =============================================================================
+    
+    def clean_data2(self, df, cutoff_sp_X):
+        df_new = df.loc[np.abs(df.sp_X) < cutoff_sp_X]
+        cutoff_clock = 3 * np.std(df_new["svCb"].values)
+        df_new = df_new.loc[np.abs(df_new["svCb"]) < cutoff_clock]
+        
+        return df_new
          
     def remove_sats(self):
         #remove 2 and 9 based on abnormal clock bias. Not good for training
         sats_to_remove = np.array([9])
         ind_to_remove = np.array([])
         for s in sats_to_remove:
-            np.append(ind_to_remove,np.where(self.df_original["svId"] == s,)[0])
+            ind_to_remove = np.append(ind_to_remove,np.where(self.df_original["svId"] == s,)[0])
         
         self.df_original = self.df_original.drop(ind_to_remove)
  
     def sample_data(self, step):
         ind = np.arange(0,self.df_original.shape[0],step)
         self.df_sampled = self.df_original.iloc[ind,:]
+        
+    def sample_data2(self, step, df):
+        ind = np.arange(0,df.shape[0],step)
+        df_sampled = df.iloc[ind,:]
+        return df_sampled
+        
         
     def init_split_indices(self):
         self.val_sat = 4
@@ -68,7 +117,7 @@ class nav_datahandler:
     def inject_error_type2(self, nb_errors):
         # Error where all values reflect a perfect server prediction (all deltas = 0)
         rand_ind = np.random.choice(self.test2_indices, nb_errors, replace=False)
-        self.df_sampled.iloc[rand_ind, :] *= 0.75
+        self.df_sampled.iloc[rand_ind, :] *= 0.5
         
     def inject_error_type3(self, nb_errors):
          # Error where distance error is fully along Z axis
@@ -129,13 +178,36 @@ class nav_datahandler:
         spoofedCb = np.cumsum(spoofedCb) + initialCb
         self.df_sampled.iloc[start_point:stop_point, colCb] = spoofedCb
         
+    def inject_error_type7(self, nb_errors):
+        #error type 7
+        false_toe = 3600
+        
+        df1_temp = self.df1.copy(deep=False)
+        df2_temp = self.df2.copy(deep=False)
+        df3_temp = self.df3.copy(deep=False)
+        
+        #df1_temp.toe = np.repeat(false_toe,df1_temp.toe.shape[0])
+        #df2_temp.toe = np.repeat(false_toe,df2_temp.toe.shape[0])
+        #df3_temp.toe = np.repeat(false_toe,df3_temp.toe.shape[0])
+        
+        #df1_temp = self.ts.scale(df1_temp, self.ref_toe_value)
+        #df2_temp = self.ts.scale(df2_temp, self.ref_toe_value)
+        #df3_temp = self.ts.scale(df3_temp, self.ref_toe_value)
+        
+        df_temp = df1_temp
+        df_temp = df_temp.append(df2_temp, ignore_index = True)
+        df_temp = df_temp.append(df3_temp, ignore_index = True)
+        
+        df_temp = self.sample_data2(self.sample_step, df_temp)
+        
+        self.df_sampled.loc[self.df_sampled.svId == self.test2_sat] = df_temp.loc[df_temp.svId == self.test2_sat]
+        
+        
         
     def extract_features(self):
-        base_feat = ["sp_X", "sp_Y", "sp_Z", "sv_X", "sv_Y", "sv_Z", "svCb"]
+        base_feat = ["sp_X", "sp_Y", "sp_Z", "sv_X", "sv_Y", "sv_Z", "svCb"] #"toe", 
         df_feat = self.df_sampled[base_feat]
         
-        #recalculate velocities to account for injected anomalies in position
-        #TODO
         
         #add squared features
         df_feat = df_feat.assign(sp_X2 = np.square(df_feat["sp_X"].values))
@@ -144,22 +216,22 @@ class nav_datahandler:
         df_feat = df_feat.assign(sv_X2 = np.square(df_feat["sv_X"].values))
         df_feat = df_feat.assign(sv_Y2 = np.square(df_feat["sv_Y"].values))
         df_feat = df_feat.assign(sv_Z2 = np.square(df_feat["sv_Z"].values))
+        df_feat = df_feat.assign(svCb2 = np.square(df_feat["svCb"].values))
         
         #add overall distance
         df_feat = df_feat.assign(sp_D = np.sqrt(np.square(df_feat["sp_X"].values) + np.square(df_feat["sp_Y"].values) + np.square(df_feat["sp_Z"].values)))
         
+        #add velocity vector
+        df_feat = df_feat.assign(sv_V = np.sqrt(np.square(df_feat["sv_X"].values) + np.square(df_feat["sv_Y"].values) + np.square(df_feat["sv_Z"].values)))
+        
         #store dataframe before scaling
-        self.df_feat_unscaled = df_feat
+        self.df_feat_unscaled = df_feat.copy(deep=True)
         
         #Standardize data -> scikit learn
         self.scaler = MinMaxScaler(feature_range=(-0.8,0.8))
-        #self.scaler = StandardScaler(copy=True, with_mean=True, with_std=True)
         self.scaler.fit(df_feat.iloc[self.train_indices, :])
         self.df_feat = pd.DataFrame(self.scaler.transform(df_feat), columns = df_feat.columns)
         
-        #Add time of week feature
-        #toe_scaled = df_sampled["toe"].values / 7200.0
-        #self.df_scaled = df_scaled.assign(toe = toe_scaled)
     
     def split_tvt(self):
         self.trainX = self.df_feat.values[self.train_indices, :]

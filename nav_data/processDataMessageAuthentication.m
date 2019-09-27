@@ -1,6 +1,6 @@
 clear all; close all; clc;
-logDir = '.\1DAY 10-09-2019 gbrm\';
-%logDir = '.\gbrm\';
+%logDir = '.\1DAY 10-09-2019 gbrm\';
+logDir = '.\WEEK2 gbrm\';
 logFiles = dir(logDir);
 k = 1;
 
@@ -16,7 +16,7 @@ end
 %%
 
 MAXGALSVID = 36;
-DeltaTimeServer = 2*3600; % sec
+DeltaTimeServer = 10*60; % sec
 
 % Process data per satellite
 nsv = 0;
@@ -46,7 +46,8 @@ for svId=1:MAXGALSVID
         
        ephTmp = getfield(eph, svIdStr);
        idx = find((ephTmp.codes == 521) &... % 521 for INAV
-                  (ephTmp.svhealth == 0));
+                  (ephTmp.svhealth == 0) &...
+                  (ephTmp.svaccuracy ~= -1));
        % check time available
        nData = length(idx);
        for j=1:nData
@@ -59,7 +60,8 @@ for svId=1:MAXGALSVID
 %            end
            
            % for the actual broadcast
-           ToW = ed.t_oe:(ed.t_oe+600-1);%edn.t_oe-1;
+           nb_samples = 60;
+           ToW = ed.t_oe:(ed.t_oe+nb_samples-1);%edn.t_oe-1;
 %            ToW = ToW((ToW-ed.t_oe)<4*3600);
            
            [sp, sv] = satposvel_e(ed, ToW);
@@ -74,7 +76,7 @@ for svId=1:MAXGALSVID
            out1.toc = [out1.toc, ed.toc*ones(size(svCb))];
 
            % for the delayed reference 
-           ToW = (ed.t_oe+DeltaTimeServer):(ed.t_oe+600-1+DeltaTimeServer);
+           ToW = (ed.t_oe+DeltaTimeServer):(ed.t_oe+nb_samples-1+DeltaTimeServer);
 %            ToW = ToW((ToW-ed.t_oe)<4*3600);
            
            [sp, sv] = satposvel_e(ed, ToW);

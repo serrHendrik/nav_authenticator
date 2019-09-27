@@ -185,16 +185,20 @@ def check_variable_test2(dh, autoencoder, var_nb):
     figsize = (12,6)
     
     trainX, valX, test1X, test2X = dh.get_tvt()
-    test_predict = autoencoder.predict(test2X)
+    X = test2X
+    test_predict = autoencoder.predict(X)
     var_name = feature_names[var_nb]
     test_predict_var = test_predict[:,var_nb]
-    test_var = test2X[:,var_nb]
+    test_var = X[:,var_nb]
     plt.figure(figsize=figsize)
     plt.plot(test_var, 'm*', label = "Ground truth", color=(0.196, 0.8, 0.196))
     plt.plot(test_predict_var, 'k.', label = "VAE sample", color=(0.1,0.1,0.1))
     plt.xlabel("Time")
     plt.ylabel(var_name + " (scaled)")
     plot_name = "Reconstruction of one variable - " + var_name + " [Test set 2]"
+    #std_3 = 3 * np.std(trainX[:,6])
+    #plt.axhline(y=std_3, color='r', linestyle='-')
+    #plt.axhline(y=-std_3, color='r', linestyle='-')
     plt.title(plot_name)
     plt.legend()
     plt.savefig(plot_name, dpi=300)
@@ -205,10 +209,12 @@ def visualise_code_space(encoder, testX, scaler):
     z_mean, z_log_var, z = encoder.predict(testX, batch_size=16)
     testXrev = scaler.inverse_transform(testX)
     plt.figure(figsize=(12, 10))
-    dim1 = 0
-    dim2 = 2
+    dim1 = 5
+    dim2 = 6
     plt.scatter(z[:, dim1], z[:, dim2], c=testXrev[:,6]) #choose c the distance and produce extreme distances.
     plt.colorbar()
+    #plt.xlim((-1,8))
+    #plt.ylim((-2.5,3))
     plt.xlabel("z["+str(dim1)+"]")
     plt.ylabel("z["+str(dim2)+"]")
     plot_name = "Representation of latent code space [Test set 2]"

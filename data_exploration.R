@@ -1,18 +1,29 @@
 
-setwd('D:/Documents/SCHOOL/Ingenieurswetenschappen - Computerwetenschappen/KUL/Jaar II/Industriele Stage - ESA/dev/nav_authenticator')
-#setwd('C:/Users/nsr/Documents/Hendrik/dev/nav_authenticator')
+#setwd('D:/Documents/SCHOOL/Ingenieurswetenschappen - Computerwetenschappen/KUL/Jaar II/Industriele Stage - ESA/dev/nav_authenticator')
+setwd('C:/Users/nsr/Documents/Hendrik/dev/nav_authenticator')
 
 
 #filename <- "nav_data/10-09-2019_toe7200.csv"
-filename <- "nav_data/10-09-2019_toe1800.csv"
+#filename <- "nav_data/10-09-2019_toe1800.csv"
+#filename <- "nav_data/week1_toe7200.csv"
+filename <- "nav_data/week2_v4_accCheck_toe1800.csv"
+
 data_orig <- read.csv(filename, header = TRUE)
-sample_ind <- seq(0,length(data_orig$svId),60)
+sample_ind <- seq(0,length(data_orig$svId),30)
 data <- data_orig[sample_ind,]
 
+wrong_ind <- data$sp_X > 1000 | data$sp_X < -1000
+sum(wrong_ind)
+data <- data[!wrong_ind,]
 
-svId <- 9
+data$sp_D = sqrt(data$sp_X^2 + data$sp_Y^2 + data$sp_Z^2)
+
+svId <- 4
 ids <- data[,"svId"] == svId
 X <- data[ids,]
+wrong_ind <- X$sp_X > 1000
+sum(wrong_ind)
+X <- X[!wrong_ind,]
 
 plot(X$sp_X)
 plot(X$sp_Y)
@@ -47,6 +58,10 @@ plot(data$sp_Z, xlab = "", xaxt='n', ylab = "sp_Z [m]", main = "Satellite Positi
 for (i in index_offset_svId) {
   abline(v = i)
 }
+plot(data$sp_D)
+for (i in index_offset_svId) {
+  abline(v = i)
+}
 
 #Plot sv_X for all satellites
 plot(data$sv_X, xlab = "", xaxt='n', ylab = "sv_X", main = "Satellite Velocity offset sv_X [E01-E36]")
@@ -69,5 +84,6 @@ plot(data$svCb, xlab = "", xaxt='n', ylab = "Cb [s]", main = "Satellite Clock Bi
 for (i in index_offset_svId) {
   abline(v = i)
 }
-
-
+sd_svCb2 <- sd(data_orig$svCb)
+abline(h = sd_svCb2, col = "red")
+abline(h = sd_svCb, col = "red")
